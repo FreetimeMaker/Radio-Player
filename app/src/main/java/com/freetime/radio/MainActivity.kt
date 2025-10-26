@@ -3,10 +3,12 @@ package com.freetime.radio
 import android.Manifest
 import android.content.Intent
 import android.os.Bundle
+import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresPermission
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,17 +32,23 @@ import com.freetime.radio.model.RadioStation
 import com.freetime.radio.notification.RadioNotificationManager
 import com.freetime.radio.player.RadioPlayerController
 import com.freetime.radio.ui.theme.RadioPlayerTheme
+import com.freetime.radio.data.RadioStations
 
 class MainActivity : ComponentActivity() {
     private lateinit var player: ExoPlayer
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        RadioNotificationManager.init(this)
 
-        val station = RadioStation("Sunshine Radio", "https://chmedia.streamabc.net/79-rsunshine-mp3-192-4746851?sABC=68s4q152%231%231699795900047_8633080%23puzrqvn-enqvb-jro&aw_0_1st.playerid=chmedia-radio-web&amsparams=playerid:chmedia-radio-web;skey:1760874834")
-        RadioNotificationManager.playStream(this, station)
+        player = ExoPlayer.Builder(this).build()
+
+        val baseStations = RadioStations.all
+        val userStations = loadUserStations(this)
+        val allStations = baseStations + userStations
+
+        setContent {
+            RadioAppUI(player, allStations)
+        }
     }
 
     override fun onDestroy() {
