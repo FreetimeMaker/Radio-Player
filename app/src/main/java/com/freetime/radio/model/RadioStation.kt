@@ -2,8 +2,8 @@ package com.freetime.radio.model
 
 data class RadioStation(
     val name: String,
-    val streamUrl: String,
-    val image: String? = null,
-    val language: String? = null,
-    val country: String? = null
+    val url: String,
+    val imageResId: Int,
+    val languageCode: String? = null,
+    val countryCode: String? = null
 )

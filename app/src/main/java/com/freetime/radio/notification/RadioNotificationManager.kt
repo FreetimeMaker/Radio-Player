@@ -29,8 +29,8 @@ object RadioNotificationManager {
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun playStream(context: Context, station: RadioStation) {
-        if (station.streamUrl != currentStation?.streamUrl) {
-            val mediaItem = MediaItem.fromUri(station.streamUrl)
+        if (station.url != currentStation?.url) {
+            val mediaItem = MediaItem.fromUri(station.url)
             player?.setMediaItem(mediaItem)
             player?.prepare()
             currentStation = station
