@@ -16,10 +16,10 @@
         android:roundIcon="@mipmap/icon_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.RadioPlayer">
-        <receiver android:name=".notification.NotificationActionReceiver" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.RadioPlayer">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

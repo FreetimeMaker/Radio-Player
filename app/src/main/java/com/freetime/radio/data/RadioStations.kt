@@ -25,6 +25,20 @@ object RadioStations {
             imageResId = R.drawable.pilatus_logo, // Placeholder, ensure you have this drawable
             countryCode = "CH",
             languageCode = "DE"
+        ),
+        RadioStation(
+            name = "SRF 3",
+            url = "http://livestreaming-node-2.srg-ssr.ch/srgssr/srf3/mp3/128",
+            imageResId = R.drawable.srf3_logo,
+            countryCode = "CH",
+            languageCode = "DE"
+        ),
+        RadioStation(
+            name = "SRF 1",
+            url = "http://livestreaming-node-2.srg-ssr.ch/srgssr/srf1/mp3/128",
+            imageResId = R.drawable.srf1_logo,
+            countryCode = "CH",
+            languageCode = "DE"
         )
     )
 }
