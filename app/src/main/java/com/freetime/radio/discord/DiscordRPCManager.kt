@@ -1,70 +1,85 @@
 package com.freetime.radio.discord
 
 import android.content.Context
-import android.util.Log
 import com.freetime.radio.model.RadioStation
-import dev.kizzy.rpc.KizzyRPC
+import dev.cbyrne.kdiscordipc.KDiscordIPC
+import dev.cbyrne.kdiscordipc.core.event.Event
+import dev.cbyrne.kdiscordipc.data.activity.timestamps
+import kotlinx.coroutines.*
 
 object DiscordRPCManager {
-    private var kizzyRPC: KizzyRPC? = null
-    private const val DISCORD_APP_ID = "1455379422558556160" // TODO: Ersetzen Sie dies mit Ihrer Discord App ID
 
-    fun initialize(context: Context) {
-        if (kizzyRPC == null) {
+    private const val CLIENT_ID = "1455379422558556160"
+
+    private var ipc: KDiscordIPC? = null
+    private var scope: CoroutineScope? = null
+    private var isConnected = false
+
+    fun start(context: Context) {
+        if (isConnected) return
+
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        scope?.launch {
             try {
-                kizzyRPC = KizzyRPC(context, DISCORD_APP_ID)
-                kizzyRPC?.start()
-                Log.d("DiscordRPCManager", "Discord RPC initialized successfully.")
+                val client = KDiscordIPC(CLIENT_ID)
+
+                client.on<Event> {
+                    println("Discord RPC connected as ${data.user.username}#${data.user.discriminator}")
+                }
+
+                client.connect()
+                ipc = client
+                isConnected = true
             } catch (e: Exception) {
-                // Discord ist möglicherweise nicht installiert oder nicht verfügbar
-                Log.e("DiscordRPCManager", "Failed to initialize Discord RPC", e)
                 e.printStackTrace()
             }
         }
     }
 
-    fun updatePresence(station: RadioStation) {
-        try {
-            val countryInfo = station.countryCode?.let { "🌍 $it" } ?: ""
-            val languageInfo = station.languageCode?.let { "🗣️ $it" } ?: ""
-            val details = listOfNotNull(countryInfo, languageInfo).joinToString(" • ")
-            
-            kizzyRPC?.updatePresence(
-                state = "Hört Radio",
-                details = "▶ ${station.name}${if (details.isNotEmpty()) " • $details" else ""}",
-                largeImageKey = "radio_icon",
-                largeImageText = "Radio Player"
-            )
-            Log.d("DiscordRPCManager", "Updated Discord presence for station: ${station.name}")
-        } catch (e: Exception) {
-            Log.e("DiscordRPCManager", "Failed to update Discord presence", e)
-            e.printStackTrace()
+    fun stop() {
+        scope?.launch {
+            try {
+                ipc?.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                ipc = null
+                isConnected = false
+            }
+        }
+        scope?.cancel()
+        scope = null
+    }
+
+    fun updatePresence(stationName: String, songTitle: String?) {
+        val client = ipc ?: return
+        val s = scope ?: return
+
+        s.launch {
+            try {
+                client.activityManager.setActivity(
+                    details = songTitle ?: "Listens to $stationName",
+                    state = "Radio Player (JetCom)",
+                ) {
+                    timestamps(System.currentTimeMillis(), null)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     fun clearPresence() {
-        try {
-            kizzyRPC?.updatePresence(
-                state = "Inaktiv",
-                details = "Kein Sender ausgewählt",
-                largeImageKey = "radio_icon",
-                largeImageText = "Radio Player"
-            )
-            Log.d("DiscordRPCManager", "Cleared Discord presence.")
-        } catch (e: Exception) {
-            Log.e("DiscordRPCManager", "Failed to clear Discord presence", e)
-            e.printStackTrace()
-        }
-    }
+        val client = ipc ?: return
+        val s = scope ?: return
 
-    fun stop() {
-        try {
-            kizzyRPC?.stop()
-            kizzyRPC = null
-            Log.d("DiscordRPCManager", "Discord RPC stopped.")
-        } catch (e: Exception) {
-            Log.e("DiscordRPCManager", "Failed to stop Discord RPC", e)
-            e.printStackTrace()
+        s.launch {
+            try {
+                client.activityManager.clearActivity()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }
