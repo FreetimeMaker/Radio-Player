@@ -37,14 +37,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.media3.exoplayer.ExoPlayer
 import com.freetime.radio.data.RadioStations
 import com.freetime.radio.data.loadUserStations
+import com.freetime.radio.discord.DiscordRPCManager
 import com.freetime.radio.model.RadioStation
 import com.freetime.radio.notification.RadioNotificationManager
 import com.freetime.radio.player.RadioPlayerController
 import com.freetime.radio.ui.theme.RadioPlayerTheme
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     private lateinit var player: ExoPlayer
@@ -76,6 +79,9 @@ class MainActivity : ComponentActivity() {
 
         player = ExoPlayer.Builder(this).build()
 
+        // Discord RPC initialisieren
+        DiscordRPCManager.initialize(this)
+
         val baseStations = RadioStations.all
         val userStations = loadUserStations(this)
         val allStations = baseStations + userStations
@@ -87,6 +93,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         player.release()
+        DiscordRPCManager.stop()
         super.onDestroy()
     }
 }
@@ -96,12 +103,14 @@ fun RadioAppUI(player: ExoPlayer, stations: List<RadioStation>) {
     var currentStation by remember { mutableStateOf<RadioStation?>(null) }
     val context = LocalContext.current
 
-    // Notification anzeigen/aktualisieren, wenn sich der aktuelle Sender ändert
+    // Notification und Discord RPC anzeigen/aktualisieren, wenn sich der aktuelle Sender ändert
     LaunchedEffect(currentStation) {
         currentStation?.let { station ->
             RadioNotificationManager.showNotification(context, station)
+            DiscordRPCManager.updatePresence(station)
         } ?: run {
             RadioNotificationManager.cancelNotification(context)
+            DiscordRPCManager.clearPresence()
         }
     }
 
@@ -109,9 +118,20 @@ fun RadioAppUI(player: ExoPlayer, stations: List<RadioStation>) {
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("🎶 Choose a Station to Play")
+
+        currentStation?.let {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("▶ Playing: ${it.name}")
+                Text(
+                    text = formatCountryAndLanguage(it.countryCode, it.languageCode),
+                    fontSize = 12.sp
+                )
+            }
+        }
 
         stations.forEach { station ->
             Row(
@@ -126,10 +146,15 @@ fun RadioAppUI(player: ExoPlayer, stations: List<RadioStation>) {
                         modifier = Modifier.size(40.dp)
                     )
                 }
-                Text(
-                    text = station.name,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = station.name)
+                    if (station.countryCode != null || station.languageCode != null) {
+                        Text(
+                            text = formatCountryAndLanguage(station.countryCode, station.languageCode),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
                 Button(onClick = {
                     currentStation = station
                     player.setMediaItem(androidx.media3.common.MediaItem.fromUri(station.url))
@@ -140,9 +165,29 @@ fun RadioAppUI(player: ExoPlayer, stations: List<RadioStation>) {
                 }
             }
         }
-
-        currentStation?.let {
-            Text("▶ Playing: ${it.name}")
-        }
     }
+}
+
+fun formatCountryAndLanguage(countryCode: String?, languageCode: String?): String {
+    val parts = mutableListOf<String>()
+    
+    countryCode?.let {
+        val countryName = try {
+            Locale("", it).displayCountry
+        } catch (e: Exception) {
+            it
+        }
+        parts.add("🌍 $countryName")
+    }
+    
+    languageCode?.let {
+        val languageName = try {
+            Locale(it).displayLanguage
+        } catch (e: Exception) {
+            it
+        }
+        parts.add("🗣️ $languageName")
+    }
+    
+    return if (parts.isEmpty()) "" else parts.joinToString(" • ")
 }
