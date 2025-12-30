@@ -3,7 +3,6 @@ package com.freetime.radio.discord
 import android.content.Context
 import com.freetime.radio.model.RadioStation
 import dev.cbyrne.kdiscordipc.KDiscordIPC
-import dev.cbyrne.kdiscordipc.core.event.Event
 import dev.cbyrne.kdiscordipc.data.activity.timestamps
 import kotlinx.coroutines.*
 
@@ -22,15 +21,10 @@ object DiscordRPCManager {
 
         scope?.launch {
             try {
-                val client = KDiscordIPC(CLIENT_ID)
-
-                client.on<Event> {
-                    println("Discord RPC connected as ${data.user.username}#${data.user.discriminator}")
-                }
-
-                client.connect()
-                ipc = client
+                ipc = KDiscordIPC(CLIENT_ID)
+                ipc?.connect()
                 isConnected = true
+                println("Discord RPC started")
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -38,29 +32,21 @@ object DiscordRPCManager {
     }
 
     fun stop() {
-        scope?.launch {
-            try {
-                ipc?.close()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                ipc = null
-                isConnected = false
-            }
-        }
         scope?.cancel()
         scope = null
+        ipc = null
+        isConnected = false
     }
 
     fun updatePresence(stationName: String, songTitle: String?) {
-        val client = ipc ?: return
-        val s = scope ?: return
+        if (!isConnected) return
+        scope ?: return
 
-        s.launch {
+        scope?.launch(Dispatchers.IO) {
             try {
-                client.activityManager.setActivity(
+                ipc?.activityManager?.setActivity(
                     details = songTitle ?: "Listens to $stationName",
-                    state = "Radio Player (JetCom)",
+                    state = "Radio Player (JetCom)"
                 ) {
                     timestamps(System.currentTimeMillis(), null)
                 }
@@ -71,12 +57,12 @@ object DiscordRPCManager {
     }
 
     fun clearPresence() {
-        val client = ipc ?: return
-        val s = scope ?: return
+        if (!isConnected) return
+        scope ?: return
 
-        s.launch {
+        scope?.launch(Dispatchers.IO) {
             try {
-                client.activityManager.clearActivity()
+                ipc?.activityManager?.clearActivity()
             } catch (e: Exception) {
                 e.printStackTrace()
             }

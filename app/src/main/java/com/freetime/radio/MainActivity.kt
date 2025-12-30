@@ -79,15 +79,17 @@ class MainActivity : ComponentActivity() {
 
         player = ExoPlayer.Builder(this).build()
 
-        // Discord RPC initialisieren
-        DiscordRPCManager.initialize(this)
+        // DISCORD RPC STARTEN
+        DiscordRPCManager.start(this)
 
         val baseStations = RadioStations.all
         val userStations = loadUserStations(this)
         val allStations = baseStations + userStations
 
         setContent {
-            RadioAppUI(player, allStations)
+            RadioPlayerTheme {
+                RadioAppUI(player, allStations)
+            }
         }
     }
 
@@ -103,11 +105,11 @@ fun RadioAppUI(player: ExoPlayer, stations: List<RadioStation>) {
     var currentStation by remember { mutableStateOf<RadioStation?>(null) }
     val context = LocalContext.current
 
-    // Notification und Discord RPC anzeigen/aktualisieren, wenn sich der aktuelle Sender ändert
+    // Notification und Discord RPC bei Station-Wechsel
     LaunchedEffect(currentStation) {
         currentStation?.let { station ->
             RadioNotificationManager.showNotification(context, station)
-            DiscordRPCManager.updatePresence(station)
+            DiscordRPCManager.updatePresence(station.name, null)
         } ?: run {
             RadioNotificationManager.cancelNotification(context)
             DiscordRPCManager.clearPresence()
@@ -121,11 +123,11 @@ fun RadioAppUI(player: ExoPlayer, stations: List<RadioStation>) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("🎶 Choose a Station to Play")
+        Text("🎶 Choose a Station to Play", fontSize = 20.sp)
 
         currentStation?.let {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("▶ Playing: ${it.name}")
+                Text("▶ Playing: ${it.name}", fontSize = 18.sp)
                 Text(
                     text = formatCountryAndLanguage(it.countryCode, it.languageCode),
                     fontSize = 12.sp
@@ -147,7 +149,7 @@ fun RadioAppUI(player: ExoPlayer, stations: List<RadioStation>) {
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = station.name)
+                    Text(text = station.name, fontSize = 16.sp)
                     if (station.countryCode != null || station.languageCode != null) {
                         Text(
                             text = formatCountryAndLanguage(station.countryCode, station.languageCode),
@@ -170,7 +172,7 @@ fun RadioAppUI(player: ExoPlayer, stations: List<RadioStation>) {
 
 fun formatCountryAndLanguage(countryCode: String?, languageCode: String?): String {
     val parts = mutableListOf<String>()
-    
+
     countryCode?.let {
         val countryName = try {
             Locale("", it).displayCountry
@@ -179,7 +181,7 @@ fun formatCountryAndLanguage(countryCode: String?, languageCode: String?): Strin
         }
         parts.add("🌍 $countryName")
     }
-    
+
     languageCode?.let {
         val languageName = try {
             Locale(it).displayLanguage
@@ -188,6 +190,6 @@ fun formatCountryAndLanguage(countryCode: String?, languageCode: String?): Strin
         }
         parts.add("🗣️ $languageName")
     }
-    
+
     return if (parts.isEmpty()) "" else parts.joinToString(" • ")
 }
