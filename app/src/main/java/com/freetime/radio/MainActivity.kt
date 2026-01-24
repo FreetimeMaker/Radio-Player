@@ -1,29 +1,25 @@
 package com.freetime.radio
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.widget.ImageView
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,17 +31,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.media3.exoplayer.ExoPlayer
 import com.freetime.radio.data.RadioStations
 import com.freetime.radio.data.loadUserStations
-import com.freetime.radio.discord.DiscordRPCManager
 import com.freetime.radio.model.RadioStation
 import com.freetime.radio.notification.RadioNotificationManager
-import com.freetime.radio.player.RadioPlayerController
 import com.freetime.radio.ui.theme.RadioPlayerTheme
 import java.util.Locale
 
@@ -63,10 +56,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Activity auf Portrait-Modus beschränken
+        // Restrict activity to portrait mode
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
-        // Notification-Berechtigung anfordern (Android 13+)
+        // Request notification permission (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this,
@@ -79,9 +72,6 @@ class MainActivity : ComponentActivity() {
 
         player = ExoPlayer.Builder(this).build()
 
-        // DISCORD RPC STARTEN
-        DiscordRPCManager.start(this)
-
         val baseStations = RadioStations.all
         val userStations = loadUserStations(this)
         val allStations = baseStations + userStations
@@ -93,9 +83,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+
+        if (!hasFocus) return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.let {
+                it.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                it.systemBarsBehavior =
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        }
+    }
+
+
     override fun onDestroy() {
         player.release()
-        DiscordRPCManager.stop()
         super.onDestroy()
     }
 }
@@ -105,14 +115,12 @@ fun RadioAppUI(player: ExoPlayer, stations: List<RadioStation>) {
     var currentStation by remember { mutableStateOf<RadioStation?>(null) }
     val context = LocalContext.current
 
-    // Notification und Discord RPC bei Station-Wechsel
+    // Notification and on station change
     LaunchedEffect(currentStation) {
         currentStation?.let { station ->
             RadioNotificationManager.showNotification(context, station)
-            DiscordRPCManager.updatePresence(station.name, null)
         } ?: run {
             RadioNotificationManager.cancelNotification(context)
-            DiscordRPCManager.clearPresence()
         }
     }
 
@@ -175,7 +183,7 @@ fun formatCountryAndLanguage(countryCode: String?, languageCode: String?): Strin
 
     countryCode?.let {
         val countryName = try {
-            Locale("", it).displayCountry
+            Locale("", it).getDisplayCountry(Locale.ENGLISH)
         } catch (e: Exception) {
             it
         }
@@ -184,7 +192,7 @@ fun formatCountryAndLanguage(countryCode: String?, languageCode: String?): Strin
 
     languageCode?.let {
         val languageName = try {
-            Locale(it).displayLanguage
+            Locale(it).getDisplayLanguage(Locale.ENGLISH)
         } catch (e: Exception) {
             it
         }

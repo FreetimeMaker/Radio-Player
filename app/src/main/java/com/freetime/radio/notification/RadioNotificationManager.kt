@@ -20,10 +20,10 @@ object RadioNotificationManager {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Radio Player",
+                "Radio Player (JetCom)",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Zeigt den aktuell spielenden Radiosender an"
+                description = "Shows the playing Radio Station"
             }
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
@@ -45,7 +45,7 @@ object RadioNotificationManager {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentTitle("Radio Player")
+            .setContentTitle("Radio Player (JetCom)")
             .setContentText("▶ ${station.name}")
             .setContentIntent(pendingIntent)
             .setOngoing(true)
