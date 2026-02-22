@@ -45,7 +45,7 @@ object RadioNotificationManager {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentTitle("Radio Player (JetCom)")
+            .setContentTitle("Radio Player")
             .setContentText("▶ ${station.name}")
             .setContentIntent(pendingIntent)
             .setOngoing(true)

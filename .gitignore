@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+.idea
+.vscode
+.kotlin
+app/release
+*.apk
+*.id.sign
