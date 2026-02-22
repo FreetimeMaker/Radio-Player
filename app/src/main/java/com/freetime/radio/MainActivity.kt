@@ -65,7 +65,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import coil.compose.AsyncImage
 import com.freetime.radio.data.RadioBrowserApiService
 import com.freetime.radio.data.RadioStations
-import com.freetime.radio.data.loadUserStations
+import com.freetime.radio.database.UserStationRepository
 import com.freetime.radio.model.RadioStation
 import com.freetime.radio.notification.RadioNotificationManager
 import com.freetime.radio.ui.components.StationCard
@@ -152,6 +152,7 @@ fun RadioAppUI(player: ExoPlayer) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val userStationRepository = remember { UserStationRepository(context) }
 
     // Load stations from API
     LaunchedEffect(Unit) {
@@ -162,24 +163,34 @@ fun RadioAppUI(player: ExoPlayer) {
             try {
                 val result = RadioBrowserApiService.getPopularStations(limit = 30)
                 result.onSuccess { apiStations ->
-                    val userStations = loadUserStations(context)
-                    stations = apiStations + userStations
-                    isLoading = false
+                    // Load user stations from database
+                    coroutineScope.launch {
+                        userStationRepository.getAllStations().collect { userStations ->
+                            stations = apiStations + userStations
+                            isLoading = false
+                        }
+                    }
                 }.onFailure { exception ->
                     error = "Failed to load stations: ${exception.message}"
                     // Fallback to local stations
                     val baseStations = RadioStations.all
-                    val userStations = loadUserStations(context)
-                    stations = baseStations + userStations
-                    isLoading = false
+                    coroutineScope.launch {
+                        userStationRepository.getAllStations().collect { userStations ->
+                            stations = baseStations + userStations
+                            isLoading = false
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 error = "Network error: ${e.message}"
                 // Fallback to local stations
                 val baseStations = RadioStations.all
-                val userStations = loadUserStations(context)
-                stations = baseStations + userStations
-                isLoading = false
+                coroutineScope.launch {
+                    userStationRepository.getAllStations().collect { userStations ->
+                        stations = baseStations + userStations
+                        isLoading = false
+                    }
+                }
             }
         }
     }
@@ -330,7 +341,9 @@ fun RadioAppUI(player: ExoPlayer) {
                     url = url,
                     imageResId = 0
                 )
-                stations = stations + newStation
+                coroutineScope.launch {
+                    userStationRepository.addStation(newStation)
+                }
                 showAddStationDialog = false
             }
         )

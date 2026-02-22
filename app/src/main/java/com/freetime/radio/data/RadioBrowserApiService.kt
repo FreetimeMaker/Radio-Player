@@ -51,7 +51,10 @@ object RadioBrowserApiService {
     ): Result<List<RadioStation>> = withContext(Dispatchers.IO) {
         try {
             val endpoint = when {
-                !query.isNullOrBlank() -> "/stations/search?name=$query&limit=$limit&order=clickcount&reverse=true"
+                !query.isNullOrBlank() -> {
+                    val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
+                    "/stations/search?name=$encodedQuery&limit=$limit&order=clickcount&reverse=true"
+                }
                 !country.isNullOrBlank() -> "/stations/bycountry/$country?limit=$limit&order=clickcount&reverse=true"
                 !language.isNullOrBlank() -> "/stations/bylanguage/$language?limit=$limit&order=clickcount&reverse=true"
                 !tag.isNullOrBlank() -> "/stations/bytag/$tag?limit=$limit&order=clickcount&reverse=true"
@@ -59,20 +62,26 @@ object RadioBrowserApiService {
             }
             
             val url = "$BASE_URL$endpoint"
+            println("API Request URL: $url") // Debug log
             
             val request = Request.Builder()
                 .url(url)
+                .addHeader("User-Agent", "RadioPlayer/1.0")
                 .get()
                 .build()
             
             val response = client.newCall(request).execute()
             
             if (!response.isSuccessful) {
+                val errorBody = response.body?.string()
+                println("API Error: ${response.code} - $errorBody") // Debug log
                 return@withContext Result.failure(Exception("HTTP ${response.code}: ${response.message}"))
             }
             
             val responseBody = response.body?.string()
                 ?: return@withContext Result.failure(Exception("Empty response body"))
+            
+            println("API Response length: ${responseBody.length}") // Debug log
             
             val browserStations = gson.fromJson(responseBody, Array<RadioBrowserStation>::class.java)
             
@@ -80,15 +89,17 @@ object RadioBrowserApiService {
                 RadioStation(
                     name = station.name,
                     url = station.url,
-                    imageResId = 0, // We'll use imageUrl instead
+                    imageResId = 0,
                     imageUrl = station.favicon,
                     countryCode = station.countryCode,
                     languageCode = extractPrimaryLanguageCode(station.languageCodes)
                 )
-            }.filter { it.url.isNotBlank() }
+            }.filter { it.url.isNotBlank() && it.name.isNotBlank() }
             
+            println("Parsed ${radioStations.size} stations") // Debug log
             Result.success(radioStations)
         } catch (e: Exception) {
+            println("API Exception: ${e.message}") // Debug log
             Result.failure(e)
         }
     }
