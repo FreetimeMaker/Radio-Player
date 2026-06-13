@@ -44,7 +44,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.9.2")
     implementation("androidx.media3:media3-ui:1.9.2")
     implementation("androidx.media3:media3-session:1.9.2")
-    implementation("androidx.media:media:1.7.1")
+    implementation("androidx.media:media:1.8.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.room:room-runtime:2.8.4")
